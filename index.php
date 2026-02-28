@@ -1,49 +1,37 @@
 <?php
-declare(strict_types=1);
+session_start();
 
-require_once __DIR__ . '/config/config.php';
-require_once __DIR__ . '/config/Database.php';
+require_once 'app/controllers/AuthController.php';
+require_once 'app/controllers/ChallengeController.php';
+require_once 'app/controllers/ProfileController.php';
+require_once 'app/controllers/ProfileController.php';
 
-spl_autoload_register(function (string $class): void {
-    foreach (['/app/controllers/', '/app/models/'] as $dir) {
-        $file = __DIR__ . $dir . $class . '.php';
-        if (file_exists($file)) { require_once $file; return; }
-    }
-});
 
-session_start([
-    'cookie_httponly' => true,
-    'cookie_secure'   => isset($_SERVER['HTTPS']),
-    'use_strict_mode' => true,
-]);
+$page = $_GET['page'] ?? 'challenges';
 
-$controller = $_GET['controller'] ?? 'home';
-$action     = $_GET['action']     ?? 'index';
-$id         = isset($_GET['id'])  ? (int) $_GET['id'] : null;
-
-$routes = [
-    'home'       => 'HomeController',
-    'user'       => 'UserController',
-    'challenge'  => 'ChallengeController',
-    'submission' => 'SubmissionController',
-    'comment'    => 'CommentController',
-    'vote'       => 'VoteController',
-];
-
-if (!array_key_exists($controller, $routes)) {
-    http_response_code(404);
-    require_once __DIR__ . '/app/views/layouts/404.php';
-    exit;
+switch ($page) {
+    case 'register':   (new AuthController())->register();      break;
+    case 'login':      (new AuthController())->login();         break;
+    case 'logout':     (new AuthController())->logout();        break;
+    case 'challenges': (new ChallengeController())->list();     break;
+    case 'challenge':  (new ChallengeController())->detail();   break;
+    case 'create':     (new ChallengeController())->create();   break;
+    case 'delete':     (new ChallengeController())->delete();   break;
+    case 'join':          (new ChallengeController())->join();    break;
+    case 'vote':          (new ChallengeController())->vote();    break;
+    case 'comment':       (new ChallengeController())->comment(); break;
+    case 'deleteAccount': (new ProfileController())->delete(); break;
+    case 'profile':     (new ProfileController())->show();   break;
+    case 'editProfile': (new ProfileController())->edit();   break;
+    case 'follow':      (new ProfileController())->follow(); break;
+    case 'deleteAccount': (new ProfileController())->delete(); break;
+    case 'deleteComment': 
+        $id = (int)($_GET['id'] ?? 0);
+        $cid = (int)($_GET['challenge_id'] ?? 0);
+        $comment = new Comment();
+        require_once 'app/models/Comment.php';
+        $comment->delete($id, $_SESSION['user_id']);
+        header('Location: index.php?page=challenge&id=' . $cid); exit;
+    break;
+    default:           (new ChallengeController())->list();     break;
 }
-
-$class = $routes[$controller];
-require_once __DIR__ . '/app/controllers/' . $class . '.php';
-$ctrl = new $class();
-
-if (!method_exists($ctrl, $action)) {
-    http_response_code(404);
-    require_once __DIR__ . '/app/views/layouts/404.php';
-    exit;
-}
-
-$id !== null ? $ctrl->$action($id) : $ctrl->$action();
